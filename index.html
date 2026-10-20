@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TAPTAP Quiz Battle · 汉都亚历史</title>
+<style>
+/* ============ 基础 ============ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{
+  height:100%;overflow:hidden;
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  background:#0b141a; 
+  color:#fff;
+  -webkit-user-select:none;user-select:none;
+  touch-action:manipulation;overscroll-behavior:none;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(34,211,238,.08), transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(244,114,182,.08), transparent 40%),
+    radial-gradient(circle at 10% 90%, rgba(251,191,36,.08), transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(74,222,128,.08), transparent 40%);
+}
+
+/* ============ 屏幕切换 ============ */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;z-index:10;}
+.screen.active{display:flex;}
+
+/* ============ 阅读阶段 ============ */
+#screen-read{padding:2vh 3vw;gap:1.5vh;}
+.read-head{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  gap:2vw;flex-wrap:wrap;
+}
+.read-scores{display:flex;gap:.8vw;flex-wrap:wrap;}
+.rb{
+  display:flex;align-items:center;gap:.6em;
+  padding:.6vh 1vw;border-radius:12px;
+  background:#15262e;
+  border:1px solid #203842;
+  font-size:clamp(13px,1.1vw,20px);font-weight:700;
+}
+.rb-name{color:var(--c);}
+.rb-score{
+  min-width:1.9em;text-align:center;
+  background:rgba(var(--crgb),.2);color:var(--c);
+  border-radius:6px;padding:.1em .5em;font-weight:900;
+}
+.read-body{
+  flex:1;display:flex;flex-direction:column;justify-content:center;gap:3vh;
+  width:100%;max-width:1600px;margin:0 auto;min-height:0;
+}
+.read-q{
+  font-size:clamp(20px,2.8vw,46px);font-weight:900;line-height:1.35;
+  text-align:center; color:#fff;
+  text-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+.read-options{display:grid;grid-template-columns:1fr 1fr;gap:1.8vh 1.6vw;}
+.opt{
+  display:flex;align-items:center;gap:1vw;
+  padding:1.6vh 1.2vw;border-radius:16px;
+  background:#15262e; border:2px solid #203842;
+  font-size:clamp(15px,1.6vw,28px);font-weight:700;line-height:1.3;
+}
+.opt .k{
+  flex:0 0 auto;width:2em;height:2em;display:grid;place-items:center;
+  border-radius:8px;font-size:.8em;font-weight:900;color:#fff;
+  background:rgba(255,255,255,.1);
+}
+.opt .v{color:#e2e8f0;word-break:break-word;}
+.read-foot{flex:0 0 auto;display:flex;justify-content:center;padding:1vh 0 3vh;}
+
+.ready-btn{
+  font-family:inherit;font-weight:900;
+  font-size:clamp(18px,2vw,32px);
+  color:#04121c;letter-spacing:.04em;
+  padding:2vh 5vw;border:none;border-radius:999px;
+  background:linear-gradient(135deg,#67e8f9,#22d3ee 45%,#06b6d4);
+  box-shadow:0 10px 0 rgba(6,116,140,.9),0 18px 50px rgba(34,211,238,.4);
+  cursor:pointer;transition:transform .09s,box-shadow .09s;
+  animation:breathe 2.4s ease-in-out infinite;
+}
+.ready-btn:active{transform:translateY(7px);box-shadow:0 3px 0 rgba(6,116,140,.9);}
+@keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.035);}}
+
+/* ============ 抢答阶段 ============ */
+#screen-play{background:transparent;}
+
+#playTop{
+  flex:0 0 auto;display:flex;align-items:center;gap:1.2vw;
+  padding:1vh 1.4vw;min-height:8vh;
+  background:#0e1e26;
+  border-bottom:1px solid #1e3742;
+}
+#qText{
+  flex:1;min-width:0;
+  font-size:clamp(14px,1.5vw,26px);font-weight:800;line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;color:#e8eef7;
+}
+.timer-wrap{
+  flex:0 0 auto;display:flex;align-items:center;gap:.7vw;
+  min-width:min(30vw,320px);
+}
+.timer-bar{
+  flex:1;height:14px;border-radius:99px;
+  background:#15262e; overflow:hidden;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.4);
+}
+.timer-fill{
+  height:100%;width:100%;border-radius:99px;
+  background:#00e5ff; transition:background .25s;
+}
+.timer-text{
+  font-size:clamp(18px,1.8vw,32px);font-weight:900;
+  font-variant-numeric:tabular-nums;
+  color:#00e5ff; min-width:2.8em;text-align:right;
+}
+
+#board{
+  flex:1;display:grid;
+  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  gap:12px;padding:12px;min-height:0;
+}
+
+/* ---- 玩家面板 ---- */
+.panel{
+  position:relative;display:flex;flex-direction:column;
+  padding:12px 16px 16px;border-radius:16px;
+  background:#15262e;
+  border:1.5px solid #203842;
+  overflow:hidden;min-height:0;
+  transition:box-shadow .3s,border-color .3s;
+}
+.panel-head{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;
+}
+.pname{
+  display:flex;align-items:center;gap:8px;
+  font-size:clamp(15px,1.4vw,24px);font-weight:800;
+  color:#fff;
+}
+.pname::before{
+  content:"";display:block;width:10px;height:10px;border-radius:50%;
+  background:var(--c); box-shadow:0 0 12px var(--c);
+}
+.pscore-wrap{
+  display:flex;align-items:center;gap:12px;
+}
+.hotkeys{
+  font-size:clamp(11px,1vw,16px);font-weight:700;color:#4a6a7a;
+  letter-spacing:.15em;
+}
+.pscore{
+  font-size:clamp(18px,1.8vw,32px);font-weight:900;color:var(--c);
+  font-variant-numeric:tabular-nums;
+  transition:transform .3s;
+}
+.pscore.bump{animation:scoreBump .5s cubic-bezier(.2,1.5,.4,1);}
+@keyframes scoreBump{0%{transform:scale(1);}45%{transform:scale(1.4);}100%{transform:scale(1);}}
+
+/* 四个答案按钮 */
+.btns{
+  flex:1;display:grid;
+  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  gap:10px;min-height:0;
+}
+.abtn{
+  position:relative;display:flex;align-items:center;
+  padding:8px 12px;border-radius:12px;
+  background:#1b2f3a; border:1.5px solid #2c4858;
+  color:#fff;font-family:inherit;text-align:left;
+  cursor:pointer;overflow:hidden;
+  transition:transform .05s, background .1s;
+  touch-action:manipulation;
+}
+.abtn .lbl{
+  flex:0 0 auto;display:grid;place-items:center;
+  width:2em;height:2em;border-radius:6px;
+  background:rgba(255,255,255,.06); color:#a5b8c4;
+  font-size:clamp(14px,1.4vw,24px);font-weight:900;
+  margin-right:12px;
+  transition:background .1s, color .1s;
+}
+.abtn .txt{
+  flex:1;
+  font-size:clamp(12px,1.3vw,24px);font-weight:800;line-height:1.2;
+  text-align:center; color:#fff;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  overflow:hidden;word-break:break-word;
+}
+.abtn .cnt{
+  position:absolute; bottom:6px; right:10px;
+  font-size:clamp(10px,.9vw,14px);font-weight:700;color:#6a8a9e;
+  font-variant-numeric:tabular-nums;
+}
+
+/* 盲点点击反馈 */
+.abtn.tapped{
+  background:#2a4b5e;
+  transform:scale(0.98);
+}
+.abtn.tapped .lbl{
+  background:rgba(255,255,255,.15); color:#fff;
+}
+.abtn.hit-count .cnt{
+  animation:cntPop .2s ease-out;
+}
+@keyframes cntPop{0%{transform:scale(1);}50%{transform:scale(1.4);color:#fff;}100%{transform:scale(1);}}
+
+.float-plus{
+  position:absolute;top:20%;left:50%;
+  transform:translateX(-50%);
+  font-weight:900;font-size:clamp(20px,2vw,36px);
+  color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.6);
+  pointer-events:none;z-index:10;
+  animation:floatUp .5s ease-out forwards;
+}
+@keyframes floatUp{
+  0%{opacity:1;transform:translate(-50%,0) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-40px) scale(1.4);}
+}
+
+/* 锁定 */
+#board.locked .abtn{filter:grayscale(.4) brightness(.6);cursor:default;}
+#board.locked .abtn:active{transform:none; background:#1b2f3a;}
+
+/* ============ 覆盖层 ============ */
+.overlay{
+  position:fixed;inset:0;z-index:200;
+  display:none;align-items:center;justify-content:center;
+}
+.overlay.active{display:flex;}
+
+/* 倒计时 */
+#countdown{background:rgba(11,20,26,.85); backdrop-filter:blur(4px);}
+.cd-num{
+  font-size:min(40vh,40vw);font-weight:900;line-height:1;
+  color:#00e5ff;
+  text-shadow:0 0 60px rgba(0,229,255,.7);
+  will-change:transform,opacity;
+}
+.cd-num.tick{animation:cdTick .8s ease forwards;}
+@keyframes cdTick{
+  0%{transform:scale(.25);opacity:0;}
+  25%{transform:scale(1.1);opacity:1;}
+  45%{transform:scale(1);opacity:1;}
+  78%{transform:scale(1);opacity:1;}
+  100%{transform:scale(.55);opacity:0;}
+}
+.cd-num.go{
+  color:#fbbf24;
+  text-shadow:0 0 60px rgba(251,191,36,.8);
+  animation:goPop .75s cubic-bezier(.2,1.4,.4,1) forwards;
+}
+@keyframes goPop{
+  0%{transform:scale(.35) rotate(-8deg);opacity:0;}
+  55%{transform:scale(1.2) rotate(2deg);opacity:1;}
+  100%{transform:scale(1) rotate(0);opacity:1;}
+}
+
+/* 通用卡片 */
+.res-card{
+  min-width:min(80vw,920px);max-width:90vw;max-height:92vh;
+  padding:4vh 3.5vw;border-radius:20px;text-align:center;
+  background:#15262e; border:1px solid #203842;
+  box-shadow:0 30px 90px rgba(0,0,0,.8);
+  animation:cardIn .35s cubic-bezier(.2,1.35,.4,1);
+  overflow-y:auto;
+}
+@keyframes cardIn{from{transform:scale(.9) translateY(20px);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+.res-title{
+  font-size:clamp(24px,2.8vw,50px);font-weight:900;margin-bottom:1.6vh;
+  color:#fff;
+}
+.res-ans{
+  display:inline-block;
+  font-size:clamp(15px,1.5vw,26px);font-weight:700;color:#00e5ff;
+  padding:1vh 2vw;border-radius:8px;
+  background:rgba(0,229,255,.1);
+  border:1px solid rgba(0,229,255,.3);
+  margin-bottom:3vh;
+  line-height:1.4;
+}
+
+/* 本题结算列表 */
+.round-list{
+  display:flex;flex-direction:column;gap:1vh;
+  margin-bottom:3vh;text-align:left;
+}
+.round-row{
+  display:flex;align-items:center;gap:1.2vw;
+  padding:1.5vh 1.5vw;border-radius:12px;
+  background:#1b2f3a; border:1px solid #2c4858;
+  font-size:clamp(14px,1.4vw,24px);font-weight:700;
+  transition:.2s;
+}
+.round-row.winner{
+  border-color:var(--c);
+  background:rgba(var(--crgb),.15);
+  box-shadow:0 0 15px rgba(var(--crgb),.3);
+}
+.rr-rank{width:1.5em;text-align:center;font-size:1.2em;flex:0 0 auto;color:#6a8a9e;}
+.rr-name{color:var(--c);font-weight:900;min-width:5em;flex:0 0 auto;}
+.rr-correct{flex:1;text-align:center;color:#e2e8f0;}
+.rr-correct b{font-size:1.3em;color:var(--c);margin:0 .2em;}
+.rr-tap{font-size:.9em;color:#6a8a9e;min-width:6.5em;text-align:right;flex:0 0 auto;}
+.rr-points{min-width:4.5em;text-align:right;font-weight:900;color:#fbbf24;flex:0 0 auto;}
+
+/* 按钮 */
+#btnNext,#btnRestart{
+  display:block;margin:0 auto;
+  font-family:inherit;font-weight:900;color:#04121c;
+  font-size:clamp(16px,1.7vw,28px);
+  padding:1.8vh 4vw;border:none;border-radius:999px;
+  background:linear-gradient(135deg,#67e8f9,#00e5ff);
+  box-shadow:0 6px 0 rgba(6,116,140,.9);
+  cursor:pointer;transition:transform .09s,box-shadow .09s;
+}
+#btnNext:active,#btnRestart:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(6,116,140,.9);}
+
+/* 最终结算 */
+.go-title{
+  font-size:clamp(24px,3vw,54px);font-weight:900;margin-bottom:3vh;
+  color:#fff;
+}
+.rank-list{display:flex;flex-direction:column;gap:1.2vh;margin-bottom:3.5vh;}
+.rank-row{
+  display:flex;align-items:center;gap:1.2vw;
+  padding:1.5vh 1.8vw;border-radius:12px;
+  background:#1b2f3a; border:1px solid #2c4858;
+  font-size:clamp(16px,1.8vw,32px);font-weight:800;
+}
+.rank-row .medal{font-size:1.2em;width:1.4em;text-align:center;flex:0 0 auto;}
+.rank-row .rname{flex:1;text-align:left;color:var(--c);font-weight:900;}
+.rank-row .rscore{font-weight:900;font-variant-numeric:tabular-nums;color:#fff;}
+.rank-row:first-child{
+  border-color:var(--c);
+  background:rgba(var(--crgb),.15);
+  box-shadow:0 0 20px rgba(var(--crgb),.4);
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 阅读阶段 ==================== -->
+<div id="screen-read" class="screen active">
+  <div class="read-head">
+    <div class="qbadge" style="background:#15262e;border-color:#203842;">第 <b id="readNum" style="color:#00e5ff;">1</b> / <span id="readTotal">20</span> 题</div>
+    <div class="read-scores" id="readScores"></div>
+  </div>
+
+  <div class="read-body">
+    <div class="read-q" id="readQ">题目加载中…</div>
+    <div class="read-options" id="readOptions">
+      <div class="opt"><span class="k">A</span><span class="v"></span></div>
+      <div class="opt"><span class="k">B</span><span class="v"></span></div>
+      <div class="opt"><span class="k">C</span><span class="v"></span></div>
+      <div class="opt"><span class="k">D</span><span class="v"></span></div>
+    </div>
+  </div>
+
+  <div class="read-foot">
+    <button id="btnReady" class="ready-btn">我读好了 · 开始倒数</button>
+  </div>
+</div>
+
+<!-- ==================== 抢答阶段 ==================== -->
+<div id="screen-play" class="screen">
+  <div id="playTop">
+    <div class="qbadge" style="background:#15262e;border-color:#203842;">第 <b id="qNum" style="color:#00e5ff;">1</b> 题</div>
+    <div id="qText"></div>
+    <div class="timer-wrap">
+      <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+      <span class="timer-text" id="timerText">10.0</span>
+    </div>
+  </div>
+  <div id="board" class="locked"></div>
+</div>
+
+<!-- ==================== 倒计时 ==================== -->
+<div id="countdown" class="overlay">
+  <div class="cd-num" id="cdNum">3</div>
+</div>
+
+<!-- ==================== 本题结算 ==================== -->
+<div id="round-result" class="overlay">
+  <div class="res-card">
+    <div class="res-title" id="roundTitle">⏱️ 时间到！</div>
+    <div class="res-ans" id="roundAns"></div>
+    <div class="round-list" id="roundList"></div>
+    <button id="btnNext">下一题 ▶</button>
+  </div>
+</div>
+
+<!-- ==================== 最终结算 ==================== -->
+<div id="gameover" class="overlay">
+  <div class="res-card">
+    <div class="go-title">🎉 游戏结束 · 最终排名</div>
+    <div class="rank-list" id="rankList"></div>
+    <button id="btnRestart">再玩一次</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   ★★★ 汉都亚历史题库 ★★★
+   ========================================================= */
+const QUESTIONS = [
+  { q: '汉都亚（Hang Tuah）是哪个王朝的著名人物？', o: ['柔佛王朝', '马六甲王朝', '吉打王朝', '霹雳王朝'], a: 1 },
+  { q: '汉都亚担任什么官职？', o: ['宰相', '财务大臣', '海军统帅', '港务大臣'], a: 2 },
+  { q: '汉都亚来自哪个地方？', o: ['甘榜双溪杜容', '马六甲皇宫', '满者伯夷', '中国'], a: 0 },
+  { q: '以下哪一位不是汉都亚的四位挚友？', o: ['Hang Jebat', 'Hang Kasturi', 'Hang Lekir', 'Taming Sari'], a: 3 },
+  { q: '汉都亚为什么获得推荐担任海军统帅？', o: ['他拥有很多财富', '他救出了宰相和家属', '他建造了一座皇宫', '他举办了一场宴会'], a: 1 },
+  { q: '以下哪一项最符合汉都亚获得苏丹赏识的过程？', o: ['成为海军统帅 → 救出宰相家属 → 获得赏识', '救出宰相和家属 → 展现勇敢 → 获得推荐与赏识', '出使中国 → 继承苏丹王位 → 成为统帅', '反抗苏丹 → 平定叛乱 → 获得官职'], a: 1 },
+  { q: '汉都亚掌握多少种语言？', o: ['八种', '十种', '十二种', '十四种'], a: 2 },
+  { q: '汉都亚在与达明沙里（Taming Sari）决斗时表现了什么个人素质？', o: ['睿智', '慷慨', '节俭', '谦虚'], a: 0 },
+  { q: '汉都亚从平民成为海军统帅，这个经历最能说明什么？', o: ['官职只能由贵族继承', '只要勇敢就能自动继承王位', '获得苏丹授予的官职可以改变一个人的社会地位', '平民不能为王朝作出贡献'], a: 2 },
+  { q: '汉都亚向谁学习马来武术？', o: ['Patih Gajah Mada', 'Hang Kasturi', 'Taming Sari', 'Aria Putera'], a: 3 },
+  { q: '汉都亚救出宰相和家属的行动，直接反映了哪一种素质？', o: ['节俭', '勇敢', '精通外交礼仪', '善于管理税收'], a: 1 },
+  { q: '哪一位挚友为了替汉都亚讨回公道而反抗苏丹？', o: ['Hang Lekiu', 'Hang Jebat', 'Hang Kasturi', 'Hang Lekir'], a: 1 },
+  { q: '当苏丹知道自己判断有误后，他命令汉都亚做什么？', o: ['离开马六甲', '停止所有公务', '恢复马六甲的安宁', '放弃海军统帅职位'], a: 2 },
+  { q: '汉惹伯（Hang Jebat）反抗苏丹的主要原因是什么？', o: ['争夺国际贸易权', '为遭受不公待遇的汉都亚讨回公道', '争取成为外国使节', '拒绝向阿利亚布特拉学习武术'], a: 1 },
+  { q: '汉都亚懂得十二种语言，这项能力在执行外交任务时最有助于什么？', o: ['有效地与外国人沟通', '决定王朝的继承人', '取代所有外交官员', '避免执行海军任务'], a: 0 },
+  { q: '汉都亚在出使外国时，需要特别维护什么？', o: ['个人财富', '私人货物', '家族产业', '马六甲的国誉'], a: 3 },
+  { q: '为什么保护马六甲海域的安全非常重要？', o: ['为了减少外国商人来访', '为了促进贸易和国家繁荣', '为了停止船只进出港口', '为了限制王朝对外交流'], a: 1 },
+  { q: '汉都亚打败达明沙里后，获得了什么？', o: ['一艘商船', '一件王袍', '马来短剑', '一顶王冠'], a: 2 },
+  { q: '汉都亚在汉惹拔反抗苏丹时，最终遵照苏丹命令行动。这反映出汉都亚优先重视什么？', o: ['朋友之间的约定', '个人财富的增长', '个人名誉高于王朝安宁', '对苏丹的忠诚和维护王朝安宁'], a: 3 },
+  { q: '如果海盗威胁外国商船，汉都亚作为海军统帅最符合职责的做法是什么？', o: ['只保护马六甲官员的私人船只', '要求商人自行解决所有威胁', '采取措施打击海盗并保障航海安全', '禁止所有外国商人进入港口'], a: 2 }
+];
+
+const TIME_LIMIT = 10; // 限时（秒）
+
+const PLAYERS = [
+  { name:'玩家 1', hex:'#00e5ff', rgb:'0,229,255'  },  // 青
+  { name:'玩家 2', hex:'#ff7eb3', rgb:'255,126,179' },  // 粉
+  { name:'玩家 3', hex:'#ffd700', rgb:'255,215,0'  },  // 黄
+  { name:'玩家 4', hex:'#4ade80', rgb:'74,222,128'  },  // 绿
+];
+const LETTERS = ['A','B','C','D'];
+
+/* =========================================================
+   状态
+   ========================================================= */
+const state = {
+  qIndex: 0,
+  phase: 'read',              // read | countdown | answer | result | over
+  scores: [0,0,0,0],          
+  btnClicks: [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]], 
+  endTime: 0,
+  rafId: null,
+};
+
+/* =========================================================
+   音效
+   ========================================================= */
+let AC = null;
+function ac(){
+  if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if(AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur = .1, type = 'sine', vol = .15, delay = 0){
+  try{
+    const ctx = ac();
+    const t = ctx.currentTime + delay;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + .01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + dur + .03);
+  }catch(e){}
+}
+let lastToneTime = 0;
+function toneThrottled(freq, dur, type, vol){
+  const now = performance.now();
+  if(now - lastToneTime < 35) return; 
+  lastToneTime = now;
+  tone(freq, dur, type, vol);
+}
+const sndTick = n => { tone(520 + n*110, .13, 'square', .13); };
+const sndGo = () => { tone(880,.22,'square',.2); tone(1320,.28,'sine',.15,.07); };
+const sndTimeUp = () => { [880,660,440,330].forEach((f,i)=>tone(f,.2,'triangle',.15,i*.12)); };
+
+/* =========================================================
+   DOM 构建
+   ========================================================= */
+const boardEl = document.getElementById('board');
+const timerFill = document.getElementById('timerFill');
+const timerText = document.getElementById('timerText');
+
+function buildBoard(){
+  const hotkeys = ['A·S·D·F', 'J·K·L·;', '1·2·3·4', '4·5·6·7']; 
+  boardEl.innerHTML = PLAYERS.map((p, pi) => `
+    <div class="panel" data-p="${pi}" style="--c:${p.hex};--crgb:${p.rgb}">
+      <div class="panel-head">
+        <span class="pname">${p.name}</span>
+        <div class="pscore-wrap">
+          <span class="hotkeys">${hotkeys[pi]}</span>
+          <span class="pscore" id="score-${pi}">0 分</span>
+        </div>
+      </div>
+      <div class="btns">
+        ${LETTERS.map((L, i) => `
+          <button class="abtn" data-p="${pi}" data-i="${i}">
+            <span class="lbl">${L}</span>
+            <span class="txt"></span>
+            <span class="cnt" id="cnt-${pi}-${i}">0 次</span>
+          </button>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function buildReadScores(){
+  document.getElementById('readScores').innerHTML = PLAYERS.map((p,i)=>`
+    <div class="rb" style="--c:${p.hex};--crgb:${p.rgb}">
+      <span class="rb-name">${p.name}</span>
+      <span class="rb-score" id="rb-${i}">0</span>
+    </div>`).join('');
+}
+
+function updateScores(){
+  state.scores.forEach((s,i)=>{
+    const a = document.getElementById('score-'+i);
+    const b = document.getElementById('rb-'+i);
+    if(a) a.textContent = s + ' 分';
+    if(b) b.textContent = s;
+  });
+}
+
+function updateBtnCounts(){
+  for(let p=0; p<4; p++){
+    for(let i=0; i<4; i++){
+      document.getElementById(`cnt-${p}-${i}`).textContent = state.btnClicks[p][i] + ' 次';
+    }
+  }
+}
+
+/* =========================================================
+   流程控制
+   ========================================================= */
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function resetForQuestion(){
+  state.btnClicks = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+  boardEl.classList.add('locked');
+  updateBtnCounts();
+  updateScores();
+  stopTimerLoop();
+  
+  document.querySelectorAll('.abtn').forEach(btn => {
+    btn.classList.remove('tapped', 'hit-count');
+  });
+}
+
+function loadQuestion(){
+  const q = QUESTIONS[state.qIndex];
+
+  document.getElementById('readNum').textContent = state.qIndex + 1;
+  document.getElementById('readTotal').textContent = QUESTIONS.length;
+  document.getElementById('readQ').textContent = q.q;
+  document.querySelectorAll('#readOptions .opt').forEach((el,i)=>{
+    el.querySelector('.v').textContent = q.o[i];
+  });
+
+  document.getElementById('qNum').textContent = state.qIndex + 1;
+  document.getElementById('qText').textContent = q.q;
+  document.getElementById('timerText').textContent = TIME_LIMIT.toFixed(1);
+  timerFill.style.width = '100%';
+  timerFill.style.background = '#00e5ff';
+
+  document.querySelectorAll('.abtn').forEach(b=>{
+    b.querySelector('.txt').textContent = q.o[+b.dataset.i];
+  });
+}
+
+function nextQuestion(){
+  if(state.qIndex >= QUESTIONS.length){ showGameOver(); return; }
+  resetForQuestion();
+  loadQuestion();
+  state.phase = 'read';
+  showScreen('read');
+}
+
+/* ---------------- 倒数 ---------------- */
+function startCountdown(){
+  state.phase = 'countdown';
+  const ov = document.getElementById('countdown');
+  const num = document.getElementById('cdNum');
+  ov.classList.add('active');
+
+  let n = 3;
+  (function step(){
+    if(n > 0){
+      num.textContent = String(n);
+      num.className = 'cd-num';
+      void num.offsetWidth;
+      num.className = 'cd-num tick';
+      sndTick(n);
+      n--;
+      setTimeout(step, 800);
+    }else{
+      num.textContent = 'GO!';
+      num.className = 'cd-num';
+      void num.offsetWidth;
+      num.className = 'cd-num go';
+      sndGo();
+      setTimeout(()=>{
+        ov.classList.remove('active');
+        beginAnswering();
+      }, 760);
+    }
+  })();
+}
+
+/* ---------------- 答题开始与计时 ---------------- */
+function beginAnswering(){
+  state.phase = 'answer';
+  state.endTime = performance.now() + TIME_LIMIT * 1000;
+  boardEl.classList.remove('locked');
+  startTimerLoop();
+}
+
+function startTimerLoop(){
+  stopTimerLoop();
+  function tick(){
+    const now = performance.now();
+    const left = Math.max(0, (state.endTime - now) / 1000);
+    const pct = Math.max(0, left / TIME_LIMIT);
+    
+    timerFill.style.width = (pct * 100) + '%';
+    timerFill.style.background = pct > 0.5 ? '#00e5ff' : pct > 0.25 ? '#ffd700' : '#f87171';
+    timerText.textContent = left.toFixed(1);
+    timerText.style.color = pct > 0.25 ? '#00e5ff' : '#f87171';
+
+    if(left <= 0){
+      endAnswering();
+      return;
+    }
+    state.rafId = requestAnimationFrame(tick);
+  }
+  state.rafId = requestAnimationFrame(tick);
+}
+
+function stopTimerLoop(){
+  if(state.rafId){ cancelAnimationFrame(state.rafId); state.rafId = null; }
+}
+
+/* ---------------- 盲点点击处理 ---------------- */
+function handleTap(pi, oi){
+  if(state.phase !== 'answer') return;
+
+  const btn = boardEl.querySelector(`.panel[data-p="${pi}"] .abtn[data-i="${oi}"]`);
+  const cntEl = document.getElementById(`cnt-${pi}-${oi}`);
+
+  state.btnClicks[pi][oi]++;
+  cntEl.textContent = state.btnClicks[pi][oi] + ' 次';
+  
+  btn.classList.remove('hit-count');
+  void btn.offsetWidth;
+  btn.classList.add('hit-count');
+  
+  btn.classList.add('tapped');
+  setTimeout(()=> btn.classList.remove('tapped'), 100);
+
+  floatPlus(btn, '+1');
+  
+  toneThrottled(800 + Math.random() * 100, .04, 'sine', .06);
+}
+
+function floatPlus(btn, text){
+  const el = document.createElement('span');
+  el.className = 'float-plus';
+  el.textContent = text;
+  btn.appendChild(el);
+  setTimeout(()=> el.remove(), 500);
+}
+
+/* ---------------- 时间到 · 揭晓结果 ---------------- */
+function endAnswering(){
+  state.phase = 'result';
+  stopTimerLoop();
+  boardEl.classList.add('locked');
+  sndTimeUp();
+
+  const q = QUESTIONS[state.qIndex];
+  const correctClicks = [0,1,2,3].map(p => state.btnClicks[p][q.a]);
+  const maxCorrect = Math.max(...correctClicks);
+  
+  let winner = -1;
+  if(maxCorrect > 0){
+    const candidates = [];
+    correctClicks.forEach((c, i) => { if(c === maxCorrect) candidates.push(i); });
+    
+    if(candidates.length === 1){
+      winner = candidates[0];
+    } else {
+      let best = -1, bestTotal = -1, tie = false;
+      candidates.forEach(i => {
+        const total = state.btnClicks[i].reduce((a,b)=>a+b, 0);
+        if(total > bestTotal){ bestTotal = total; best = i; tie = false; }
+        else if(total === bestTotal){ tie = true; }
+      });
+      if(!tie) winner = best;
+    }
+  }
+
+  if(winner >= 0){
+    state.scores[winner]++;
+    const pscore = document.getElementById('score-'+winner);
+    pscore.textContent = state.scores[winner] + ' 分';
+    pscore.classList.remove('bump'); 
+    void pscore.offsetWidth; 
+    pscore.classList.add('bump');
+    updateScores(); 
+  }
+
+  setTimeout(()=> showRoundResult(winner, correctClicks), 400);
+}
+
+function showRoundResult(winner, correctClicks){
+  const q = QUESTIONS[state.qIndex];
+
+  const title = document.getElementById('roundTitle');
+  if(winner >= 0){
+    title.textContent = `⏱️ 时间到！${PLAYERS[winner].name} 胜出`;
+    title.style.color = PLAYERS[winner].hex;
+  }else{
+    title.textContent = Math.max(...correctClicks) === 0
+      ? '⏱️ 时间到！无人答对'
+      : '⏱️ 时间到！本题平局';
+    title.style.color = '#fff';
+  }
+
+  document.getElementById('roundAns').textContent =
+    `正确答案：${LETTERS[q.a]}. ${q.o[q.a]}`;
+
+  const order = [0,1,2,3].sort((a,b) => {
+    const correctDiff = correctClicks[b] - correctClicks[a];
+    if(correctDiff !== 0) return correctDiff;
+    return state.btnClicks[b].reduce((x,y)=>x+y,0) - state.btnClicks[a].reduce((x,y)=>x+y,0);
+  });
+
+  document.getElementById('roundList').innerHTML = order.map((i, rank) => {
+    const p = PLAYERS[i];
+    const isWinner = i === winner;
+    const totalTaps = state.btnClicks[i].reduce((a,b)=>a+b, 0);
+    return `
+      <div class="round-row ${isWinner ? 'winner' : ''}" style="--c:${p.hex};--crgb:${p.rgb}">
+        <span class="rr-rank">${isWinner ? '🏆' : (rank+1) + '.'}</span>
+        <span class="rr-name">${p.name}</span>
+        <span class="rr-correct">选中正确 <b>${correctClicks[i]}</b> 次</span>
+        <span class="rr-tap">总点击 ${totalTaps} 次</span>
+        <span class="rr-points">${isWinner ? '胜出' : ''}</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('round-result').classList.add('active');
+}
+
+/* ---------------- 最终结算 ---------------- */
+function showGameOver(){
+  state.phase = 'over';
+  const order = PLAYERS
+    .map((p,i)=>({...p, idx:i, s: state.scores[i]}))
+    .sort((a,b)=> b.s - a.s);
+
+  const medals = ['🥇','🥈','🥉','4️⃣'];
+  document.getElementById('rankList').innerHTML = order.map((p, rank)=>`
+    <div class="rank-row" style="--c:${p.hex};--crgb:${p.rgb}">
+      <span class="medal">${medals[rank]}</span>
+      <span class="rname">${p.name}</span>
+      <span class="rscore">${p.s} 分</span>
+    </div>`).join('');
+
+  document.getElementById('gameover').classList.add('active');
+  [523.25,659.25,783.99,1046.5,1318.5].forEach((f,i)=>tone(f,.35,'triangle',.14,i*.12));
+}
+
+/* =========================================================
+   事件绑定
+   ========================================================= */
+boardEl.addEventListener('pointerdown', e => {
+  const btn = e.target.closest('.abtn');
+  if(!btn) return;
+  e.preventDefault();
+  handleTap(+btn.dataset.p, +btn.dataset.i);
+});
+
+document.getElementById('btnNext').addEventListener('click', ()=>{
+  document.getElementById('round-result').classList.remove('active');
+  state.qIndex++;
+  nextQuestion();
+});
+
+document.getElementById('btnRestart').addEventListener('click', ()=> location.reload());
+
+document.getElementById('btnReady').addEventListener('click', ()=>{
+  if(state.phase !== 'read') return;
+  ac();
+  showScreen('play');
+  startCountdown();
+});
+
+/* =========================================================
+   启动
+   ========================================================= */
+function init(){
+  buildBoard();
+  buildReadScores();
+  updateScores();
+  nextQuestion();
+}
+init();
+</script>
+</body>
+</html>
